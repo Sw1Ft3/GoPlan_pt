@@ -1,0 +1,233 @@
+{% extends 'schedules/base.html' %}
+{% load schedule_tags %}
+
+{% block title %}{{ schedule.title }} - Расписания{% endblock %}
+<link rel="icon" href="favicon.png" type="image/png">
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap">
+    <div class="flex-grow-1">
+        <a href="{% url 'index' %}" class="text-decoration-none mb-2 d-inline-block">
+            ← Назад к списку
+        </a>
+        <h2 class="mb-2">{{ schedule.title }}</h2>
+        {% if schedule.description %}
+            <p class="text-muted mb-0">{{ schedule.description }}</p>
+        {% endif %}
+    </div>
+    <button class="btn btn-primary mt-3 mt-md-0" onclick="showCreateEventModal()">
+        ➕ Добавить событие
+    </button>
+</div>
+
+<div class="row g-3">
+    {% for day in days_order %}
+        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+            <div class="card h-100 shadow-sm day-column">
+                <div class="card-header bg-light text-center">
+                    <h5 class="mb-0">
+                        {% if day == 'monday' %}Понедельник
+                        {% elif day == 'tuesday' %}Вторник
+                        {% elif day == 'wednesday' %}Среда
+                        {% elif day == 'thursday' %}Четверг
+                        {% elif day == 'friday' %}Пятница
+                        {% elif day == 'saturday' %}Суббота
+                        {% elif day == 'sunday' %}Воскресенье
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-2">
+                    {% with day_events=events_by_day|get_item:day %}
+                        {% for event in day_events %}
+                            <div class="card mb-2 event-card" style="border-left: 4px solid {{ event.color }};">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0 flex-grow-1">{{ event.title }}</h6>
+                                        <div class="d-flex gap-1 ms-2">
+                                            <button class="btn btn-sm btn-link p-0 text-decoration-none" 
+                                                    onclick="showEditEventModal({{ event.id }}, '{{ event.title|escapejs }}', '{{ event.description|escapejs }}', '{{ event.day_of_week }}', '{{ event.start_time }}', '{{ event.end_time }}', '{{ event.color }}')" 
+                                                    title="Редактировать">
+                                                ✏️
+                                            </button>
+                                            <form method="post" action="{% url 'delete_event' event.id %}" 
+                                                  onsubmit="return confirm('Удалить это событие?');" 
+                                                  class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none" title="Удалить">🗑️</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mb-1">
+                                        {{ event.start_time|time:"H:i" }} - {{ event.end_time|time:"H:i" }}
+                                    </small>
+                                    {% if event.description %}
+                                        <p class="card-text small text-muted mb-0">{{ event.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center text-muted py-4">
+                                <small>Нет событий</small>
+                            </div>
+                        {% endfor %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Модальное окно создания события -->
+<div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createEventModalLabel">Добавить событие</h5>
+                <button type="button" class="btn-close" onclick="closeCreateEventModal()" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'create_event' schedule.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="event-title" class="form-label">Название <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="event-title" name="title" required 
+                               placeholder="Название события">
+                    </div>
+                    <div class="mb-3">
+                        <label for="event-description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="event-description" name="description" rows="3" 
+                                  placeholder="Описание события (необязательно)"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="event-day" class="form-label">День недели <span class="text-danger">*</span></label>
+                            <select class="form-select" id="event-day" name="day_of_week" required>
+                                <option value="monday">Понедельник</option>
+                                <option value="tuesday">Вторник</option>
+                                <option value="wednesday">Среда</option>
+                                <option value="thursday">Четверг</option>
+                                <option value="friday">Пятница</option>
+                                <option value="saturday">Суббота</option>
+                                <option value="sunday">Воскресенье</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="event-color" class="form-label">Цвет</label>
+                            <input type="color" class="form-control form-control-color" id="event-color" name="color" value="#3b82f6">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="event-start" class="form-label">Время начала <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="event-start" name="start_time" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="event-end" class="form-label">Время окончания <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="event-end" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateEventModal()">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования события -->
+<div class="modal fade" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editEventModalLabel">Редактировать событие</h5>
+                <button type="button" class="btn-close" onclick="closeEditEventModal()" aria-label="Close"></button>
+            </div>
+            <form id="editEventForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit-event-title" class="form-label">Название <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit-event-title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-event-description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="edit-event-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-event-day" class="form-label">День недели <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit-event-day" name="day_of_week" required>
+                                <option value="monday">Понедельник</option>
+                                <option value="tuesday">Вторник</option>
+                                <option value="wednesday">Среда</option>
+                                <option value="thursday">Четверг</option>
+                                <option value="friday">Пятница</option>
+                                <option value="saturday">Суббота</option>
+                                <option value="sunday">Воскресенье</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-event-color" class="form-label">Цвет</label>
+                            <input type="color" class="form-control form-control-color" id="edit-event-color" name="color" value="#3b82f6">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-event-start" class="form-label">Время начала <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="edit-event-start" name="start_time" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-event-end" class="form-label">Время окончания <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="edit-event-end" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditEventModal()">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showCreateEventModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createEventModal'));
+    modal.show();
+}
+
+function closeCreateEventModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+
+function showEditEventModal(eventId, title, description, day, startTime, endTime, color) {
+    document.getElementById('editEventForm').action = `/event/${eventId}/edit/`;
+    document.getElementById('edit-event-title').value = title;
+    document.getElementById('edit-event-description').value = description || '';
+    document.getElementById('edit-event-day').value = day;
+    document.getElementById('edit-event-start').value = startTime;
+    document.getElementById('edit-event-end').value = endTime;
+    document.getElementById('edit-event-color').value = color;
+    const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
+    modal.show();
+}
+
+function closeEditEventModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('editEventModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+</script>
+{% endblock %}

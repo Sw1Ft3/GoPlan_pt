@@ -1,0 +1,106 @@
+{% extends 'schedules/base.html' %}
+
+{% block title %}Главная - Расписания{% endblock %}
+<link rel="icon" href="favicon.png" type="image/png">
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+    <h2 class="mb-3 mb-md-0">Мои расписания</h2>
+    <button class="btn btn-primary" onclick="showCreateScheduleModal()">
+        ➕ Создать расписание
+    </button>
+</div>
+
+{% if schedules %}
+    <div class="row g-4">
+        {% for schedule in schedules %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm schedule-card">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0 flex-grow-1">{{ schedule.title }}</h5>
+                            <div class="d-flex gap-2 ms-2">
+                                <a href="{% url 'schedule_detail' schedule.id %}" class="btn btn-sm btn-primary">
+                                    Открыть
+                                </a>
+                                <form method="post" action="{% url 'delete_schedule' schedule.id %}" 
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить это расписание?');" 
+                                      class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% if schedule.description %}
+                            <p class="card-text text-muted flex-grow-1">{{ schedule.description }}</p>
+                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+                            <small class="text-muted">Событий: {{ schedule.events.count }}</small>
+                            <small class="text-muted">Создано: {{ schedule.created_at|date:"d.m.Y" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card shadow-sm empty-state">
+        <div class="card-body text-center py-5">
+            <div class="empty-icon mb-3">📅</div>
+            <h3 class="mb-3">У вас пока нет расписаний</h3>
+            <p class="text-muted mb-4">Создайте первое расписание, чтобы начать работу</p>
+            <button class="btn btn-primary" onclick="showCreateScheduleModal()">
+                Создать расписание
+            </button>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Модальное окно создания расписания -->
+<div class="modal fade" id="createScheduleModal" tabindex="-1" aria-labelledby="createScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createScheduleModalLabel">Создать новое расписание</h5>
+                <button type="button" class="btn-close" onclick="closeCreateScheduleModal()" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'create_schedule' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Название <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" required 
+                               placeholder="Например: Учебное расписание">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" 
+                                  placeholder="Описание расписания (необязательно)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateScheduleModal()">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showCreateScheduleModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createScheduleModal'));
+    modal.show();
+}
+
+function closeCreateScheduleModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createScheduleModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+</script>
+{% endblock %}
